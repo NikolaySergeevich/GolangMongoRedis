@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"context"
+
 	"redis-cache/database"
 )
 
 type Repository interface {
-	AddCommand(command database.Command) error
-	FindByCommand() (database.Command, error)
+	AddCommand(ctx context.Context, command database.Command) error
+	FindByCommand(ctx context.Context, command string) (database.Command, error)
 }
