@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/google/uuid"
+	// "github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -21,7 +22,7 @@ import (
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-	mongoDB, err := mongo.Connect(
+	mongoClient, err := mongo.Connect(
 		ctx, &options.ClientOptions{
 			Hosts: []string{fmt.Sprintf("%s:%d", "127.0.0.1", 27018)},
 		},
@@ -30,19 +31,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := mongoDB.Ping(ctx, readpref.Primary()); err != nil {
+	if err := mongoClient.Ping(ctx, readpref.Primary()); err != nil {
 		log.Fatal(err)
 	}
 
-	redisClient := redis.NewClient(&redis.Options{DB: 1})
+	redisClient := redis.NewClient(&redis.Options{DB: 1, Addr: ":6381"})
+	status := redisClient.Ping(ctx)
+	if err := status.Err(); err != nil{
+		log.Fatal(err)
+	}
 
-	commandsRepository := commands.NewMongoDbRepository(mongoDB.Database("test-db"))
 
-	cachedRepository := commands.NewCacheRepository(redisClient)
+	mongoDb := mongoClient.Database("test-db")
+	commandsRepository := commands.NewMongoDbRepository(mongoDb)
+
+	cachedRepository := commands.NewCacheRepository(redisClient, commandsRepository)
 
 	if err := cachedRepository.AddCommand(
 		ctx, database.Command{
-			ID:        uuid.New(),
+			ID:        primitive.NewObjectID(),//это для того что бы генерировать id
 			Command:   "ls -la",
 			CreatedAt: time.Now().UTC(),
 		},
@@ -64,7 +71,7 @@ func main() {
 
 	_ = commandsRepository
 	_ = cachedRepository
-	_ = mongoDB
+	_ = mongoClient
 
 	<-ctx.Done()
 }
