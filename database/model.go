@@ -2,12 +2,11 @@ package database
 
 import (
 	"time"
-
-	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Command struct {
-	ID        uuid.UUID `json:"id" bson:"id"`
+	ID        primitive.ObjectID `json:"id" bson:"id"`
 	Command   string    `json:"command" bson:"command"`
 	CreatedAt time.Time `json:"created_at" bson:"created_at"`
 }
